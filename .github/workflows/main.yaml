@@ -1,74 +1,74 @@
-  name: Release application
+name: Release application
 
-  on:
-    push:
+on:
+  push:
 
-  env:
-    PROJECT_ID: ${{ secrets.GKE_PROJECT }}
-    GKE_CLUSTER: dwk-cluster
-    GKE_ZONE: europe-north1-b
-    REGISTRY: europe-north1-docker.pkg.dev
-    REPOSITORY: my-repository
-    IMAGE_FE: todo-app
-    IMAGE_BE: todo-app-back
-    SERVICE_FE: todo-app
-    SERVICE_BE: todo-app-back
-    BRANCH: ${{ github.ref_name }}
+env:
+  PROJECT_ID: ${{ secrets.GKE_PROJECT }}
+  GKE_CLUSTER: dwk-cluster
+  GKE_ZONE: europe-north1-b
+  REGISTRY: europe-north1-docker.pkg.dev
+  REPOSITORY: my-repository
+  IMAGE_FE: todo-app
+  IMAGE_BE: todo-app-back
+  SERVICE_FE: todo-app
+  SERVICE_BE: todo-app-back
+  BRANCH: ${{ github.ref_name }}
 
-  jobs:
-    build-publish-deploy:
-      name: Build, Publish and Deploy
-      runs-on: ubuntu-latest
+jobs:
+  build-publish-deploy:
+    name: Build, Publish and Deploy
+    runs-on: ubuntu-latest
 
-      steps:
-        - name: Checkout
-          uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-        - uses: google-github-actions/auth@v2
-          with:
-            credentials_json: '${{ secrets.GKE_SA_KEY }}'
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GKE_SA_KEY }}'
 
-        - name: 'Set up Cloud SDK'
-          uses: google-github-actions/setup-gcloud@v2
+      - name: 'Set up Cloud SDK'
+        uses: google-github-actions/setup-gcloud@v2
 
-        - name: 'Use gcloud CLI'
-          run: gcloud info
-        
-        - run: gcloud --quiet auth configure-docker
+      - name: 'Use gcloud CLI'
+        run: gcloud info
+      
+      - run: gcloud --quiet auth configure-docker
 
-        - name: 'Get GKE credentials'
-          uses: 'google-github-actions/get-gke-credentials@v2'
-          with:
-            cluster_name: '${{ env.GKE_CLUSTER }}'
-            project_id: '${{ env.PROJECT_ID }}'
-            location: '${{ env.GKE_ZONE }}'      
-        
-        - name: Form frontend image name
-          run: echo "IMAGE_TAG_FE=$REGISTRY/$PROJECT_ID/$REPOSITORY/$IMAGE_FE:$BRANCH-$GITHUB_SHA" >> $GITHUB_ENV
-        
-        - name: Build frontend image
-          run: docker build -f Dockerfile.app --tag $IMAGE_TAG_FE .
-        
-        - name: Publish frontend image
-          run: docker push $IMAGE_TAG_FE
-        
-        - name: Form backend image name
-          run: echo "IMAGE_TAG_BE=$REGISTRY/$PROJECT_ID/$REPOSITORY/$IMAGE_BE:$BRANCH-$GITHUB_SHA" >> $GITHUB_ENV
-        
-        - name: Build backend image
-          run: docker build -f Dockerfile.back --tag $IMAGE_TAG_BE .
-        
-        - name: Publish backend image
-          run: docker push $IMAGE_TAG_BE
+      - name: 'Get GKE credentials'
+        uses: 'google-github-actions/get-gke-credentials@v2'
+        with:
+          cluster_name: '${{ env.GKE_CLUSTER }}'
+          project_id: '${{ env.PROJECT_ID }}'
+          location: '${{ env.GKE_ZONE }}'      
+      
+      - name: Form frontend image name
+        run: echo "IMAGE_TAG_FE=$REGISTRY/$PROJECT_ID/$REPOSITORY/$IMAGE_FE:$BRANCH-$GITHUB_SHA" >> $GITHUB_ENV
+      
+      - name: Build frontend image
+        run: docker build -f Dockerfile.app --tag $IMAGE_TAG_FE .
+      
+      - name: Publish frontend image
+        run: docker push $IMAGE_TAG_FE
+      
+      - name: Form backend image name
+        run: echo "IMAGE_TAG_BE=$REGISTRY/$PROJECT_ID/$REPOSITORY/$IMAGE_BE:$BRANCH-$GITHUB_SHA" >> $GITHUB_ENV
+      
+      - name: Build backend image
+        run: docker build -f Dockerfile.back --tag $IMAGE_TAG_BE .
+      
+      - name: Publish backend image
+        run: docker push $IMAGE_TAG_BE
 
-        - name: Set up Kustomize
-          uses: imranismail/setup-kustomize@v2.1.0
+      - name: Set up Kustomize
+        uses: imranismail/setup-kustomize@v2.1.0
 
-        - name: Deploy
-          run: |-
-            kustomize edit set image PROJECT/IMAGE_FE=$IMAGE_TAG_FE
-            kustomize edit set image PROJECT/IMAGE_BE=$IMAGE_TAG_BE
-            kustomize build . | kubectl apply -f -
-            kubectl rollout status deployment $SERVICE_FE -n project
-            kubectl rollout status deployment $SERVICE_BE -n project
-            kubectl get services -n project -o wide
+      - name: Deploy
+        run: |-
+          kustomize edit set image PROJECT/IMAGE_FE=$IMAGE_TAG_FE
+          kustomize edit set image PROJECT/IMAGE_BE=$IMAGE_TAG_BE
+          kustomize build . | kubectl apply -f -
+          kubectl rollout status deployment $SERVICE_FE -n project
+          kubectl rollout status deployment $SERVICE_BE -n project
+          kubectl get services -n project -o wide
