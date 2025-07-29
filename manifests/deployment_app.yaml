@@ -19,7 +19,7 @@ spec:
             claimName: todo-app-claim
       containers:
         - name: todo-app
-          image: skinatro/todo-app:latest
+          image: PROJECT/IMAGE_FE
           env:
             - name: PORT
               value: "5555"
