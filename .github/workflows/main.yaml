@@ -11,8 +11,8 @@ env:
   REPOSITORY: my-repository
   IMAGE_FE: todo-app
   IMAGE_BE: todo-app-back
-  SERVICE_FE: todo-app
-  SERVICE_BE: todo-app-back
+  SERVICE_FE: todo-app-depl
+  SERVICE_BE: todo-app-back-depl
   BRANCH: ${{ github.ref_name }}
 
 jobs:
