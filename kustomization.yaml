@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: project
+namePrefix: kustom-
+resources:
+- ./manifests/confmap.yaml
+- ./manifests/deployment_app.yaml
+- ./manifests/deployment_back.yaml
+- ./manifests/ingress.yaml
+- ./manifests/namespace.yaml
+- ./manifests/secret.yaml
+- ./manifests/service_app.yaml
+- ./manifests/service_back.yaml
+- ./manifests/service_mongo.yaml
+- ./manifests/statefulset.yaml
+- ./volume/persistentvolumeclaim.yaml

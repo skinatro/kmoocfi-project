@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-app-depl
+  namespace: project
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: todo-app
+  template:
+    metadata:
+      labels:
+        app: todo-app
+    spec:
+      volumes:
+        - name: shared-image
+          persistentVolumeClaim:
+            claimName: todo-app-claim
+      containers:
+        - name: todo-app
+          image: skinatro/todo-app:latest
+          env:
+            - name: PORT
+              value: "5555"
+            - name: TIMEOUT
+              value: "3600"
+          volumeMounts:
+            - name: shared-image
+              mountPath: /usr/src/app/static

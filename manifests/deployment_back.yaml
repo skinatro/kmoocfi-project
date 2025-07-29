@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-app-backend-depl
+  namespace: project
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: todo-app-backend
+  template:
+    metadata:
+      labels:
+        app: todo-app-backend
+    spec:
+      containers:
+        - name: todo-app-backend
+          image: skinatro/todo-app-back:latest
+          env:
+          - name: PORT
+            valueFrom:
+              configMapKeyRef:
+                name: todo-app-configmap
+                key: port
+
+          - name: MONGO_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: mongodb-secret
+                key: mongo_password
+
+          - name: MONGO_USERNAME
+            valueFrom:
+              configMapKeyRef:
+                name: todo-app-configmap
+                key: mongo_initdb_root_username
+
+          - name: MONGO_HOST
+            value: mongodb-svc
+
+          - name: MONGO_DB
+            valueFrom:
+              configMapKeyRef:
+                name: todo-app-configmap
+                key: mongo_initdb_database

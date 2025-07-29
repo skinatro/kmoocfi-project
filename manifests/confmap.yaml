@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: todo-app-configmap
+  namespace: project
+data:
+  port: "5555"
+  mongo_initdb_root_username: mongoadmin
+  mongo_initdb_database: todos
