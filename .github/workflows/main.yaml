@@ -13,8 +13,6 @@ env:
   IMAGE_BE: todo-app-back
   SERVICE: todo-app-depl
   BRANCH: ${{ github.ref_name }}
-  NAMESPACE: ${GITHUB_REF#refs/heads/}
-
 
 jobs:
   build-publish-deploy:
@@ -70,6 +68,7 @@ jobs:
 
       - name: Deploy
         run: |-
+          NAMESPACE=$(echo "${GITHUB_REF#refs/heads/}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
           if [[ "$NAMESPACE" == "master" ]]; then
             NAMESPACE="project"
           fi
