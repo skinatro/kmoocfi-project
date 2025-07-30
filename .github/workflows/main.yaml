@@ -72,7 +72,7 @@ jobs:
           if [[ "$NAMESPACE" == "master" ]]; then
             NAMESPACE="project"
           fi
-          kubectl create namespace ${GITHUB_REF#refs/heads/} || true
+          kubectl create namespace $NAMESPACE || true
           kubectl config set-context --current --namespace=$NAMESPACE
           kustomize edit set namespace ${GITHUB_REF#refs/heads/}
           kustomize edit set image PROJECT/IMAGE=$IMAGE_TAG
