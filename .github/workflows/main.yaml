@@ -13,6 +13,8 @@ env:
   IMAGE_BE: todo-app-back
   SERVICE: todo-app-depl
   BRANCH: ${{ github.ref_name }}
+  NAMESPACE: ${GITHUB_REF#refs/heads/}
+
 
 jobs:
   build-publish-deploy:
@@ -68,8 +70,13 @@ jobs:
 
       - name: Deploy
         run: |-
-          kustomize edit set image PROJECT/IMAGE_FE=$IMAGE_TAG_FE
-          kustomize edit set image PROJECT/IMAGE_BE=$IMAGE_TAG_BE
+          if [[ "$NAMESPACE" == "master" ]]; then
+            NAMESPACE="project"
+          fi
+          kubectl create namespace ${GITHUB_REF#refs/heads/} || true
+          kubectl config set-context --current --namespace=$NAMESPACE
+          kustomize edit set namespace ${GITHUB_REF#refs/heads/}
+          kustomize edit set image PROJECT/IMAGE=$IMAGE_TAG
           kustomize build . | kubectl apply -f -
           kubectl rollout status deployment $SERVICE
           kubectl get services -o wide

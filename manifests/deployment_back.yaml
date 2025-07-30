@@ -11,6 +11,8 @@ spec:
     metadata:
       labels:
         app: todo-app-backend
+    strategy: 
+      type:  "Recreate"
     spec:
       containers:
         - name: todo-app-backend
