@@ -3,7 +3,6 @@ kind: PersistentVolumeClaim
 metadata:
   name: todo-app-claim # name of the volume claim, this will be used in the deployment
 spec:
-  storageClassName: standard
   accessModes:
     - ReadWriteOnce
   resources:
