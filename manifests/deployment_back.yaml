@@ -7,12 +7,12 @@ spec:
   selector:
     matchLabels:
       app: todo-app-backend
+  strategy: 
+    type:  "Recreate"
   template:
     metadata:
       labels:
         app: todo-app-backend
-    strategy: 
-      type:  "Recreate"
     spec:
       containers:
         - name: todo-app-backend
