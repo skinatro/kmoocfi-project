@@ -45,10 +45,18 @@ def todos():
             logging.warning("POST /todos - Task exceeds 140 characters: %r", new_task)
             return "Task too long (max 140 characters)", 400
 
-        todos_collection.insert_one({"task": new_task})
+        try:
+            todos_collection.insert_one({"task": new_task})
+        except Exception as e:
+            logging.error(f"Failed to insert task: {e}")
+            return "Internal Server Error", 500
+
         logging.info("POST /todos - Task added: %r", new_task)
         return redirect("/")
 
+@app.route("/", methods=["GET"])
+def index():
+    return "Backend is running", 200
 
 if __name__ == '__main__':
     PORT = os.environ.get("PORT")
