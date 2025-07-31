@@ -6,14 +6,8 @@ env:
   PROJECT_ID: ${{ secrets.GKE_PROJECT }}
   GKE_CLUSTER: dwk-cluster
   GKE_ZONE: europe-north1-b
-  REGISTRY: europe-north1-docker.pkg.dev
-  REPOSITORY: my-repository
-  IMAGE_FE: todo-app
-  IMAGE_BE: todo-app-back
-  SERVICE_FE: todo-app-depl
-  SERVICE_BE: todo-app-backend-depl
-  BRANCH: ${{ github.ref_name }}
-
+  BRANCH_REF: "${{ github.event.ref }}"
+  BRANCH_NAME: "${BRANCH_REF#refs/heads/}"
 
 jobs:
   delete-namespace:
@@ -40,9 +34,13 @@ jobs:
 
       - name: Delete
         run: |-
-          NAMESPACE=$(echo "$BRANCH" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
+
+          NAMESPACE=$(echo "$BRANCH_NAME" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
           if [[ "$NAMESPACE" == "master" ]]; then
             NAMESPACE="project"
           fi
-          echo $NAMESPACE
-          kubectl delete namespace $NAMESPACE || true
+
+          echo "Deleting namespace: $NAMESPACE for branch: $BRANCH_NAME"
+
+
+          kubectl delete namespace "$NAMESPACE" || true
