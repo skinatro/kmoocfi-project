@@ -7,8 +7,8 @@ spec:
   selector:
     matchLabels:
       app: todo-app-backend
-  strategy: 
-    type:  "Recreate"
+  # strategy: 
+  #   type:  "Recreate"
   template:
     metadata:
       labels:
@@ -17,6 +17,27 @@ spec:
       containers:
         - name: todo-app-backend
           image: PROJECT/IMAGE_BE
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5555               
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5555
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
           env:
           - name: PORT
             valueFrom:

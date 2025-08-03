@@ -57,6 +57,20 @@ def todos():
 @app.route("/", methods=["GET"])
 def index():
     return "Backend is running", 200
+@app.route('/healthz', methods=['GET'])
+def healthz():
+    """
+    Health check endpoint for Kubernetes probes.
+    Checks MongoDB connectivity.
+    """
+    try:
+        # 'server_info()' is cheap and a good connectivity check
+        _ = client.server_info()
+        return "OK", 200
+    except Exception as e:
+        app.logger.error(f"Health check failed: {e}")
+        return "Database connection error", 500
+
 
 if __name__ == '__main__':
     PORT = os.environ.get("PORT")

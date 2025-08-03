@@ -46,6 +46,24 @@ def index():
         download_image()
     return render_template("index.html",task_list=task_list)
 
+@app.route('/healthz', methods=['GET'])
+def healthz():
+    """
+    Health check endpoint for frontend.
+    Verifies that the backend service is reachable and responding.
+    """
+    backend_url = "http://todo-app-backend-svc:5555/todos"
+    try:
+        response = requests.get(backend_url, timeout=3)
+        if response.status_code == 200:
+            return "OK", 200
+        else:
+            app.logger.error(f"Backend returned status code {response.status_code}")
+            return "Backend error", 500
+    except requests.RequestException as e:
+        app.logger.error(f"Health check to backend failed: {e}")
+        return "Backend unreachable", 500
+
 
 if __name__ == "__main__":
     port = os.environ.get("PORT")
