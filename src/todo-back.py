@@ -86,25 +86,6 @@ def update_todo(task_id):
         logging.error(f"Failed to update task {task_id}: {e}")
         return "Internal Server Error", 500
 
-@app.route("/todos/<task_id>", methods=["DELETE"])
-def delete_todo(task_id):
-    try:
-        if not ObjectId.is_valid(task_id):
-            return "Invalid task ID", 400
-
-        result = todos_collection.delete_one({"_id": ObjectId(task_id)})
-        
-        if result.deleted_count == 0:
-            logging.warning("DELETE /todos/%s - Task not found", task_id)
-            return "Task not found", 404
-
-        logging.info("DELETE /todos/%s - Task deleted", task_id)
-        return jsonify({"success": True, "id": task_id})
-
-    except Exception as e:
-        logging.error(f"Failed to delete task {task_id}: {e}")
-        return "Internal Server Error", 500
-
 @app.route("/", methods=["GET"])
 def index():
     return jsonify({"message": "Todo Backend API is running", "version": "1.0"}), 200

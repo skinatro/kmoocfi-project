@@ -7,7 +7,6 @@ from flask import Flask, render_template, request, redirect, flash
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "your-secret-key-here")
 
-# Configuration
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://todo-app-backend-svc:5555")
 TIMEOUT_SECONDS = int(os.environ.get("TIMEOUT", "300"))  # 5 minutes default
 STATIC_DIR = "/usr/src/app/static"
@@ -93,54 +92,32 @@ def create_todo():
     
     return redirect("/")
 
-@app.route("/todo/<task_id>/toggle", methods=["POST"])
-def toggle_todo(task_id):
-    """Toggle todo status via backend PUT request"""
-    done_status = request.form.get("done", "true").lower() == "true"
+@app.route("/todo/<task_id>", methods=["POST"])
+def mark_as_done(task_id):
+    """Mark a todo as done """
     
     try:
         response = requests.put(
             f"{BACKEND_URL}/todos/{task_id}",
-            json={"done": done_status},
+            json={"done": True},  # Always mark as done
             timeout=5,
             headers={"Content-Type": "application/json"}
         )
         
         if response.status_code == 200:
-            action = "completed" if done_status else "reopened"
-            flash(f"Task {action} successfully", "success")
+            flash("Task completed successfully", "success")
         elif response.status_code == 404:
             flash("Task not found", "error")
         else:
-            flash(f"Failed to update task: {response.text}", "error")
+            flash(f"Failed to complete task: {response.text}", "error")
             
     except requests.RequestException as e:
-        print(f"Error toggling task {task_id}: {e}")
-        flash("Unable to update task - server error", "error")
+        print(f"Error marking task {task_id} as done: {e}")
+        flash("Unable to complete task - server error", "error")
     
     return redirect("/")
 
-@app.route("/todo/<task_id>/delete", methods=["POST"])
-def delete_todo(task_id):
-    """Delete a todo via backend DELETE request"""
-    try:
-        response = requests.delete(
-            f"{BACKEND_URL}/todos/{task_id}",
-            timeout=5
-        )
-        
-        if response.status_code == 200:
-            flash("Task deleted successfully", "success")
-        elif response.status_code == 404:
-            flash("Task not found", "error")
-        else:
-            flash(f"Failed to delete task: {response.text}", "error")
-            
-    except requests.RequestException as e:
-        print(f"Error deleting task {task_id}: {e}")
-        flash("Unable to delete task - server error", "error")
-    
-    return redirect("/")
+
 
 @app.route("/healthz", methods=["GET"])
 def healthz():
