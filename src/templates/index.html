@@ -4,22 +4,59 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Todo App</title>
+
 </head>
 <body>
-    <h1>The Project App</h1>
-    <img src="{{ url_for('static', filename='image.jpg') }}" width="500" height="500">
-    
-    <form method="POST" action="/todos">
-        <input type="text" name="todo" maxlength="140" placeholder="Enter your task" required>
-        <input type="submit" value="Create ToDo">
-    </form>
+    <div class="container">
+        <h1>The Project App</h1>
+        
+        <img src="{{ url_for('static', filename='image.jpg') }}" 
+             class="hero-image" 
+             width="500" 
+             height="500" 
+             alt="Random Image">
+        
+        <form method="POST" action="/todos" class="todo-form">
+            <input type="text" 
+                   name="todo" 
+                   maxlength="140" 
+                   placeholder="Enter your task (max 140 characters)" 
+                   class="todo-input"
+                   required>
+            <button type="submit" class="btn btn-primary">Create ToDo</button>
+        </form>
 
-    <ul>
-    {%for task in task_list%}
-        <li>{{ task["task"] }}</li>
-    {%endfor%}
-    </ul>
+        <h2>ToDo </h2>
+            <ul class="todo-list">
+                {% for task in task_list %}
+                    <li class="todo-item">
+                        <span class="todo-text">{{ task["task"] }}</span>
+                        <div class="todo-actions">
+                            <form method="POST" action="/todo/{{ task['_id'] }}" style="display: inline;">
+                                <input type="hidden" name="done" value="true">
+                                <button type="submit" class="btn btn-success">✓ Done</button>
+                            </form>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
 
-    <p>Devops with Kubernetes 2025</p>
+
+        <h2>Done</h2>
+            <ul class="todo-list">
+                {% for task in tasks_done %}
+                    <li class="todo-item done">
+                        <span class="todo-text completed">{{ task["task"] }}</span>
+                        <div class="todo-actions">
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+
+
+        <div class="footer">
+            <p>DevOps with Kubernetes 2025</p>
+        </div>
+    </div>
 </body>
 </html>
