@@ -1,16 +1,18 @@
 import os
 import logging
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, request, jsonify
 from pymongo import MongoClient
 from bson import ObjectId
 
 app = Flask(__name__)
 
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 
+# MongoDB configuration
 username = os.environ.get("MONGO_USERNAME")
 password = os.environ.get("MONGO_PASSWORD")
 host = os.environ.get("MONGO_HOST")
@@ -20,7 +22,6 @@ MONGO_URI = f"mongodb://{username}:{password}@{host}:27017/{db_name}?authSource=
 client = MongoClient(MONGO_URI)
 db = client[db_name]
 todos_collection = db["todos"]
-
 
 @app.route("/todos", methods=["GET", "POST"])
 def todos():
@@ -32,7 +33,12 @@ def todos():
         return jsonify(todos)
 
     if request.method == "POST":
-        new_task = request.form.get("todo", "")
+        # Handle both form data and JSON
+        if request.content_type == 'application/json':
+            new_task = request.json.get("task", "")
+        else:
+            new_task = request.form.get("todo", "")
+            
         logging.info("POST /todos - Received: %r", new_task)
 
         if not new_task:
@@ -44,23 +50,23 @@ def todos():
             return "Task too long (max 140 characters)", 400
 
         try:
-            todos_collection.insert_one({"task": new_task, "done": False})
+            result = todos_collection.insert_one({"task": new_task, "done": False})
+            logging.info("POST /todos - Task added: %r", new_task)
+            return jsonify({"success": True, "id": str(result.inserted_id), "task": new_task})
         except Exception as e:
             logging.error(f"Failed to insert task: {e}")
             return "Internal Server Error", 500
-
-        logging.info("POST /todos - Task added: %r", new_task)
-        return redirect("/")
-
 
 @app.route("/todos/<task_id>", methods=["PUT"])
 def update_todo(task_id):
     try:
         if not ObjectId.is_valid(task_id):
+            logging.warning("PUT /todos/%s - Invalid ObjectId", task_id)
             return "Invalid task ID", 400
 
         data = request.get_json()
         if not data or "done" not in data:
+            logging.warning("PUT /todos/%s - Missing 'done' field", task_id)
             return "Missing 'done' field in request body", 400
 
         done_status = bool(data["done"])
@@ -80,27 +86,41 @@ def update_todo(task_id):
         logging.error(f"Failed to update task {task_id}: {e}")
         return "Internal Server Error", 500
 
+@app.route("/todos/<task_id>", methods=["DELETE"])
+def delete_todo(task_id):
+    try:
+        if not ObjectId.is_valid(task_id):
+            return "Invalid task ID", 400
+
+        result = todos_collection.delete_one({"_id": ObjectId(task_id)})
+        
+        if result.deleted_count == 0:
+            logging.warning("DELETE /todos/%s - Task not found", task_id)
+            return "Task not found", 404
+
+        logging.info("DELETE /todos/%s - Task deleted", task_id)
+        return jsonify({"success": True, "id": task_id})
+
+    except Exception as e:
+        logging.error(f"Failed to delete task {task_id}: {e}")
+        return "Internal Server Error", 500
 
 @app.route("/", methods=["GET"])
 def index():
-    return "Backend is running", 200
-
+    return jsonify({"message": "Todo Backend API is running", "version": "1.0"}), 200
 
 @app.route("/healthz", methods=["GET"])
 def healthz():
-    """
-    Health check endpoint for Kubernetes probes.
-    Checks MongoDB connectivity.
-    """
+    """Health check endpoint for Kubernetes probes."""
     try:
-        _ = client.server_info()
+        # Test MongoDB connection
+        client.server_info()
         return "OK", 200
     except Exception as e:
-        app.logger.error(f"Health check failed: {e}")
+        logging.error(f"Health check failed: {e}")
         return "Database connection error", 500
 
-
 if __name__ == "__main__":
-    PORT = os.environ.get("PORT")
+    PORT = os.environ.get("PORT", 5555)
     logging.info("Starting ToDo backend on port %s", PORT)
     app.run(host="0.0.0.0", port=int(PORT), debug=False)
