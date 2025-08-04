@@ -6,13 +6,11 @@ from bson import ObjectId
 
 app = Flask(__name__)
 
-# --- Logging Setup ---
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 
-# MongoDB connection
 username = os.environ.get("MONGO_USERNAME")
 password = os.environ.get("MONGO_PASSWORD")
 host = os.environ.get("MONGO_HOST")
@@ -24,17 +22,17 @@ db = client[db_name]
 todos_collection = db["todos"]
 
 
-@app.route('/todos', methods=['GET', 'POST'])
+@app.route("/todos", methods=["GET", "POST"])
 def todos():
-    if request.method == 'GET':
-        todos = list(todos_collection.find({}, {"_id": 1, "task": 1}))
+    if request.method == "GET":
+        todos = list(todos_collection.find({}, {"_id": 1, "task": 1, "done": 1}))
         for t in todos:
             t["_id"] = str(t["_id"])
         logging.info("GET /todos - %d tasks fetched", len(todos))
         return jsonify(todos)
 
-    if request.method == 'POST':
-        new_task = request.form.get('todo', '')
+    if request.method == "POST":
+        new_task = request.form.get("todo", "")
         logging.info("POST /todos - Received: %r", new_task)
 
         if not new_task:
@@ -46,7 +44,7 @@ def todos():
             return "Task too long (max 140 characters)", 400
 
         try:
-            todos_collection.insert_one({"task": new_task})
+            todos_collection.insert_one({"task": new_task, "done": False})
         except Exception as e:
             logging.error(f"Failed to insert task: {e}")
             return "Internal Server Error", 500
@@ -54,17 +52,47 @@ def todos():
         logging.info("POST /todos - Task added: %r", new_task)
         return redirect("/")
 
+
+@app.route("/todos/<task_id>", methods=["PUT"])
+def update_todo(task_id):
+    try:
+        if not ObjectId.is_valid(task_id):
+            return "Invalid task ID", 400
+
+        data = request.get_json()
+        if not data or "done" not in data:
+            return "Missing 'done' field in request body", 400
+
+        done_status = bool(data["done"])
+
+        result = todos_collection.update_one(
+            {"_id": ObjectId(task_id)}, {"$set": {"done": done_status}}
+        )
+
+        if result.matched_count == 0:
+            logging.warning("PUT /todos/%s - Task not found", task_id)
+            return "Task not found", 404
+
+        logging.info("PUT /todos/%s - Done status updated to: %s", task_id, done_status)
+        return jsonify({"success": True, "id": task_id, "done": done_status})
+
+    except Exception as e:
+        logging.error(f"Failed to update task {task_id}: {e}")
+        return "Internal Server Error", 500
+
+
 @app.route("/", methods=["GET"])
 def index():
     return "Backend is running", 200
-@app.route('/healthz', methods=['GET'])
+
+
+@app.route("/healthz", methods=["GET"])
 def healthz():
     """
     Health check endpoint for Kubernetes probes.
     Checks MongoDB connectivity.
     """
     try:
-        # 'server_info()' is cheap and a good connectivity check
         _ = client.server_info()
         return "OK", 200
     except Exception as e:
@@ -72,7 +100,7 @@ def healthz():
         return "Database connection error", 500
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     PORT = os.environ.get("PORT")
     logging.info("Starting ToDo backend on port %s", PORT)
     app.run(host="0.0.0.0", port=int(PORT), debug=False)

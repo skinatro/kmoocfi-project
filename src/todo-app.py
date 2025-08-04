@@ -19,7 +19,9 @@ def download_image():
     Download file from the source
     """
     global start_time
-    with urllib.request.urlopen(url="https://picsum.photos/1200") as response, open(file_name, 'wb') as out_file:
+    with urllib.request.urlopen(url="https://picsum.photos/1200") as response, open(
+        file_name, "wb"
+    ) as out_file:
         out_file.write(response.read())
     start_time = time.time()
 
@@ -30,6 +32,7 @@ def download_new():
     """
     return time.time() - start_time > timeout
 
+
 @app.route("/")
 def index():
     """
@@ -37,16 +40,25 @@ def index():
     """
     response = requests.get(url="http://todo-app-backend-svc:5555/todos", timeout=3)
     try:
-        task_list = response.json()
+        all_tasks = response.json()
     except Exception as e:
         print("Failed to parse JSON from backend:", e)
-        task_list = []
+        all_tasks = []
+
+    task_list = [
+        task for task in all_tasks if not task.get("done", False)
+    ]  # Pending tasks
+    tasks_done = [
+        task for task in all_tasks if task.get("done", False)
+    ]  # Completed tasks
 
     if download_new():
         download_image()
-    return render_template("index.html",task_list=task_list)
 
-@app.route('/healthz', methods=['GET'])
+    return render_template("index.html", task_list=task_list, tasks_done=tasks_done)
+
+
+@app.route("/healthz", methods=["GET"])
 def healthz():
     """
     Health check endpoint for frontend.

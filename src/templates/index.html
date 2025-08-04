@@ -14,11 +14,22 @@
         <input type="submit" value="Create ToDo">
     </form>
 
+    <h2>ToDo</h2>
+
     <ul>
     {%for task in task_list%}
         <li>{{ task["task"] }}</li>
     {%endfor%}
     </ul>
+
+    <h2>Done</h2>
+
+    <ul>
+    {%for task in tasks_done%}
+        <li>{{ task["task"] }}</li>
+    {%endfor%}
+    </ul>
+
 
     <p>Devops with Kubernetes 2025</p>
 </body>
