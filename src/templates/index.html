@@ -27,7 +27,6 @@
         </form>
 
         <h2>ToDo </h2>
-        {% if task_list %}
             <ul class="todo-list">
                 {% for task in task_list %}
                     <li class="todo-item">
@@ -41,28 +40,19 @@
                     </li>
                 {% endfor %}
             </ul>
-        {% else %}
-            <div class="empty-state">No pending tasks. Great job! 🎉</div>
-        {% endif %}
+
 
         <h2>Done</h2>
-        {% if tasks_done %}
             <ul class="todo-list">
                 {% for task in tasks_done %}
                     <li class="todo-item done">
                         <span class="todo-text completed">{{ task["task"] }}</span>
                         <div class="todo-actions">
-                            <form method="POST" action="/todo/{{ task['_id'] }}" style="display: inline;">
-                                <input type="hidden" name="done" value="false">
-                                <button type="submit" class="btn btn-warning">Undo</button>
-                            </form>
                         </div>
                     </li>
                 {% endfor %}
             </ul>
-        {% else %}
-            <div class="empty-state">No completed tasks yet.</div>
-        {% endif %}
+
 
         <div class="footer">
             <p>DevOps with Kubernetes 2025</p>
