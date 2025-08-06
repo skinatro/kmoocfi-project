@@ -44,6 +44,7 @@ def start_nats_background():
             global nats_client
             try:
                 nats_url = os.environ.get("NATS_URL", "nats://nats-service:4222")
+                nats_client = await connect(nats_url)
                 logging.info("Connected to NATS server")
                 # Keep the loop running
                 while True:
