@@ -30,7 +30,7 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   name: todo-app-configmap
-                  key: nats_url
+                  key: nats-url
             - name: DISCORD_WEBHOOK_URL 
               valueFrom:
                 secretKeyRef:
