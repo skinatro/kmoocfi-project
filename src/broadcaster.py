@@ -22,7 +22,7 @@ async def message_handler(msg):
 
 async def main():
     """Listen to subject db-updates and call message_handler"""
-    nc = await connect("NATS_URL")
+    nc = await connect(NATS_URL)
     await nc.subscribe("db-updates", cb=message_handler)
     
     while True:
