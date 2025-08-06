@@ -11,8 +11,10 @@ env:
   REPOSITORY: my-repository
   IMAGE_FE: todo-app
   IMAGE_BE: todo-app-back
+  IMAGE_BD: broadcaster
   SERVICE_FE: todo-app-depl
   SERVICE_BE: todo-app-backend-depl
+  SERVICE_BD: broadcast-depl
   BRANCH: ${{ github.ref_name }}
 
 jobs:
@@ -44,7 +46,13 @@ jobs:
           location: '${{ env.GKE_ZONE }}'      
 
       - name: 'Set up Docker Buildx'
-        run: gcloud auth configure-docker "$REGISTRY"      
+        run: gcloud auth configure-docker "$REGISTRY"
+
+      - name: Install SOPS
+        run: |
+          curl -LO https://github.com/getsops/sops/releases/latest/download/sops-v3.8.1.linux.amd64
+          sudo mv sops-v3.8.1.linux.amd64 /usr/local/bin/sops
+          sudo chmod +x /usr/local/bin/sops
 
       - name: Form frontend image name
         run: echo "IMAGE_TAG_FE=$REGISTRY/$PROJECT_ID/$REPOSITORY/$IMAGE_FE:$BRANCH-$GITHUB_SHA" >> $GITHUB_ENV
@@ -64,11 +72,21 @@ jobs:
       - name: Publish backend image
         run: docker push $IMAGE_TAG_BE
 
+      - name: Form broadcaster image name
+        run: echo "IMAGE_TAG_BD=$REGISTRY/$PROJECT_ID/$REPOSITORY/$IMAGE_BD:$BRANCH-$GITHUB_SHA" >> $GITHUB_ENV
+      
+      - name: Build broadcaster image
+        run: docker build -f Dockerfile.broadcaster --tag $IMAGE_TAG_BD .
+      
+      - name: Publish broadcaster image
+        run: docker push $IMAGE_TAG_BD
+
       - name: Set up Kustomize
         uses: imranismail/setup-kustomize@v2.1.0
 
       - name: Deploy
         run: |-
+          export SOPS_AGE_KEY="${AGE_KEY}"
           NAMESPACE=$(echo "${GITHUB_REF#refs/heads/}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
           if [[ "$NAMESPACE" == "master" ]]; then
             NAMESPACE="project"
@@ -78,7 +96,10 @@ jobs:
           kustomize edit set namespace $NAMESPACE
           kustomize edit set image PROJECT/IMAGE_FE=$IMAGE_TAG_FE
           kustomize edit set image PROJECT/IMAGE_BE=$IMAGE_TAG_BE
+          kustomize edit set image PROJECT/IMAGE_BD=$IMAGE_TAG_BD  
           kustomize build . | kubectl apply -f -
+          sops --decrypt "$secret_file" | kubectl apply -f -
           kubectl rollout status deployment $SERVICE_FE
-          kubectl rollout status deployment $SERVICE_BE        
+          kubectl rollout status deployment $SERVICE_BE
+          kubectl rollout status deployment $SERVICE_BD
           kubectl get services -o wide
