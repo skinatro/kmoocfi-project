@@ -50,9 +50,13 @@ jobs:
 
       - name: Install SOPS
         run: |
-          curl -LO https://github.com/getsops/sops/releases/latest/download/sops-v3.8.1.linux.amd64
-          sudo mv sops-v3.8.1.linux.amd64 /usr/local/bin/sops
+          # Get the latest version dynamically
+          SOPS_VERSION=$(curl -s https://api.github.com/repos/getsops/sops/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+          curl -LO "https://github.com/getsops/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.amd64"
+          sudo mv "sops-${SOPS_VERSION}.linux.amd64" /usr/local/bin/sops
           sudo chmod +x /usr/local/bin/sops
+          # Verify installation
+          sops --version
 
       - name: Form frontend image name
         run: echo "IMAGE_TAG_FE=$REGISTRY/$PROJECT_ID/$REPOSITORY/$IMAGE_FE:$BRANCH-$GITHUB_SHA" >> $GITHUB_ENV
