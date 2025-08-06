@@ -39,6 +39,12 @@ spec:
               memory: "256Mi"
               cpu: "500m"
           env:
+          - name: NATS_URL
+            valueFrom:
+              configMapKeyRef:
+                name: todo-app-configmap
+                key: nats-url
+                  
           - name: PORT
             valueFrom:
               configMapKeyRef:
@@ -48,7 +54,7 @@ spec:
           - name: MONGO_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: mongodb-secret
+                name: todo-app-secret
                 key: mongo_password
 
           - name: MONGO_USERNAME
@@ -65,3 +71,4 @@ spec:
               configMapKeyRef:
                 name: todo-app-configmap
                 key: mongo_initdb_database
+

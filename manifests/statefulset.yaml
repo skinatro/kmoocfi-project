@@ -27,7 +27,7 @@ spec:
             - name: MONGO_INITDB_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: mongodb-secret
+                  name: todo-app-secret
                   key: mongo_password
             - name: MONGO_INITDB_DATABASE
               valueFrom:

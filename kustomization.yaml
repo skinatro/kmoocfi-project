@@ -1,17 +1,7 @@
   apiVersion: kustomize.config.k8s.io/v1beta1
   kind: Kustomization
   resources:
-  - ./manifests/confmap.yaml
-  - ./manifests/deployment_app.yaml
-  - ./manifests/deployment_back.yaml
-  - ./manifests/ingress.yaml
-  #- ./manifests/namespace.yaml
-  - ./manifests/secret.yaml
-  - ./manifests/service_app.yaml
-  - ./manifests/service_back.yaml
-  - ./manifests/service_mongo.yaml
-  - ./manifests/statefulset.yaml
-  - ./volume/persistentvolumeclaim.yaml
+  - ./manifests/
 
   images:
     - name: PROJECT/IMAGE_FE
@@ -20,3 +10,5 @@
     - name: PROJECT/IMAGE_BE
       newName: europe-north1-docker.pkg.dev/my-project/my-repository/todo-app-back
 
+    - name: PROJECT/IMAGE_BD
+      newName: europe-north1-docker.pkg.dev/my-project/my-repository/broadcaster

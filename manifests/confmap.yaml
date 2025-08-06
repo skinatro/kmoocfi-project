@@ -6,3 +6,5 @@ data:
   port: "5555"
   mongo_initdb_root_username: mongoadmin
   mongo_initdb_database: todos
+  timeout: "3600"
+  nats-url: "nats://nats-service:4222"
