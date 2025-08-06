@@ -86,19 +86,23 @@ jobs:
 
       - name: Deploy
         run: |-
-          export SOPS_AGE_KEY="${AGE_KEY}"
+          export SOPS_AGE_KEY="${{ secrets.AGE_KEY }}"
           NAMESPACE=$(echo "${GITHUB_REF#refs/heads/}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
           if [[ "$NAMESPACE" == "master" ]]; then
             NAMESPACE="project"
           fi
           kubectl create namespace $NAMESPACE || true
           kubectl config set-context --current --namespace=$NAMESPACE
+
+          cd ${{ github.workspace }}
           kustomize edit set namespace $NAMESPACE
           kustomize edit set image PROJECT/IMAGE_FE=$IMAGE_TAG_FE
           kustomize edit set image PROJECT/IMAGE_BE=$IMAGE_TAG_BE
-          kustomize edit set image PROJECT/IMAGE_BD=$IMAGE_TAG_BD  
+          kustomize edit set image PROJECT/IMAGE_BD=$IMAGE_TAG_BD
           kustomize build . | kubectl apply -f -
-          sops --decrypt "$secret_file" | kubectl apply -f -
+
+          sops --decrypt secret/secret.enc.yaml | kubectl apply -f -
+
           kubectl rollout status deployment $SERVICE_FE
           kubectl rollout status deployment $SERVICE_BE
           kubectl rollout status deployment $SERVICE_BD
