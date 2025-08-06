@@ -1,7 +1,18 @@
   apiVersion: kustomize.config.k8s.io/v1beta1
   kind: Kustomization
   resources:
-  - ./manifests/
+    - manifests/namespace.yaml
+    - manifests/deployment_app.yaml
+    - manifests/deployment_back.yaml
+    - manifests/deployment_broadcast.yaml
+    - manifests/service_app.yaml
+    - manifests/service_back.yaml
+    - manifests/service_mongo.yaml
+    - manifests/statefulset.yaml
+    - manifests/ingress.yaml
+    - manifests/persistentvolumeclaim.yaml
+    - manifests/confmap.yaml
+    - manifests/nats_comb.yaml
 
   images:
     - name: PROJECT/IMAGE_FE
