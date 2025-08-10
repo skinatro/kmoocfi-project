@@ -1,9 +1,9 @@
-name: Release application
+name: GitOps
 
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   build-publish-update:
