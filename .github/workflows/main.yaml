@@ -2,112 +2,68 @@ name: Release application
 
 on:
   push:
-
-env:
-  PROJECT_ID: ${{ secrets.GKE_PROJECT }}
-  GKE_CLUSTER: dwk-cluster
-  GKE_ZONE: europe-north1-b
-  REGISTRY: europe-north1-docker.pkg.dev
-  REPOSITORY: my-repository
-  IMAGE_FE: todo-app
-  IMAGE_BE: todo-app-back
-  IMAGE_BD: broadcaster
-  SERVICE_FE: todo-app-depl
-  SERVICE_BE: todo-app-backend-depl
-  SERVICE_BD: broadcast-depl
-  BRANCH: ${{ github.ref_name }}
+    branches:
+      - main
 
 jobs:
-  build-publish-deploy:
-    name: Build, Publish and Deploy
+  build-publish-update:
+    name: Build, Publish to Docker Hub and Update Manifests
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - uses: google-github-actions/auth@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with: 
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
         with:
-          credentials_json: '${{ secrets.GKE_SA_KEY }}'
+          context: .
+          file: ./Dockerfile.app
+          push: true
+          tags: |
+            skinatro/todo-app:${{ github.sha }}
+            skinatro/todo-app:latest
 
-      - name: 'Set up Cloud SDK'
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: 'Use gcloud CLI'
-        run: gcloud info
-      
-      - run: gcloud --quiet auth configure-docker
-
-      - name: 'Get GKE credentials'
-        uses: 'google-github-actions/get-gke-credentials@v2'
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
         with:
-          cluster_name: '${{ env.GKE_CLUSTER }}'
-          project_id: '${{ env.PROJECT_ID }}'
-          location: '${{ env.GKE_ZONE }}'      
+          context: .
+          file: ./Dockerfile.back
+          push: true
+          tags: |
+            skinatro/todo-app-back:${{ github.sha }}
+            skinatro/todo-app-back:latest
 
-      - name: 'Set up Docker Buildx'
-        run: gcloud auth configure-docker "$REGISTRY"
-
-      - name: Install SOPS
-        run: |
-          # Get the latest version dynamically
-          SOPS_VERSION=$(curl -s https://api.github.com/repos/getsops/sops/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-          curl -LO "https://github.com/getsops/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.amd64"
-          sudo mv "sops-${SOPS_VERSION}.linux.amd64" /usr/local/bin/sops
-          sudo chmod +x /usr/local/bin/sops
-          # Verify installation
-          sops --version
-
-      - name: Form frontend image name
-        run: echo "IMAGE_TAG_FE=$REGISTRY/$PROJECT_ID/$REPOSITORY/$IMAGE_FE:$BRANCH-$GITHUB_SHA" >> $GITHUB_ENV
-      
-      - name: Build frontend image
-        run: docker build -f Dockerfile.app --tag $IMAGE_TAG_FE .
-      
-      - name: Publish frontend image
-        run: docker push $IMAGE_TAG_FE
-      
-      - name: Form backend image name
-        run: echo "IMAGE_TAG_BE=$REGISTRY/$PROJECT_ID/$REPOSITORY/$IMAGE_BE:$BRANCH-$GITHUB_SHA" >> $GITHUB_ENV
-      
-      - name: Build backend image
-        run: docker build -f Dockerfile.back --tag $IMAGE_TAG_BE .
-      
-      - name: Publish backend image
-        run: docker push $IMAGE_TAG_BE
-
-      - name: Form broadcaster image name
-        run: echo "IMAGE_TAG_BD=$REGISTRY/$PROJECT_ID/$REPOSITORY/$IMAGE_BD:$BRANCH-$GITHUB_SHA" >> $GITHUB_ENV
-      
-      - name: Build broadcaster image
-        run: docker build -f Dockerfile.broadcaster --tag $IMAGE_TAG_BD .
-      
-      - name: Publish broadcaster image
-        run: docker push $IMAGE_TAG_BD
+      - name: Build and push broadcaster image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.broadcaster
+          push: true
+          tags: |
+            skinatro/todo-broadcast:${{ github.sha }}
+            skinatro/todo-broadcast:latest
 
       - name: Set up Kustomize
         uses: imranismail/setup-kustomize@v2.1.0
 
-      - name: Deploy
-        run: |-
-          export SOPS_AGE_KEY="${{ secrets.AGE_KEY }}"
-          NAMESPACE=$(echo "${GITHUB_REF#refs/heads/}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
-          if [[ "$NAMESPACE" == "master" ]]; then
-            NAMESPACE="project"
-          fi
-          kubectl create namespace $NAMESPACE || true
-          kubectl config set-context --current --namespace=$NAMESPACE
+      - name: Update image references
+        run: |
+          kustomize edit set image PROJECT/IMAGE_FE=skinatro/todo-app:${{ github.sha }}
+          kustomize edit set image PROJECT/IMAGE_BE=skinatro/todo-app-back:${{ github.sha }}
+          kustomize edit set image PROJECT/IMAGE_BD=skinatro/todo-broadcast:${{ github.sha }}
 
-          cd ${{ github.workspace }}
-          kustomize edit set namespace $NAMESPACE
-          kustomize edit set image PROJECT/IMAGE_FE=$IMAGE_TAG_FE
-          kustomize edit set image PROJECT/IMAGE_BE=$IMAGE_TAG_BE
-          kustomize edit set image PROJECT/IMAGE_BD=$IMAGE_TAG_BD
-          kustomize build . | kubectl apply -f -
-
-          sops --decrypt secret/secret.enc.yaml | kubectl apply -f -
-
-          kubectl rollout status deployment $SERVICE_FE
-          kubectl rollout status deployment $SERVICE_BE
-          kubectl rollout status deployment $SERVICE_BD
-          kubectl get services -o wide
+      - name: Commit updated kustomization.yaml
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: 'kustomization.yaml'
+          message: 'Update images to ${{ github.sha }}'
