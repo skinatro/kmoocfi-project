@@ -12,4 +12,3 @@ resources:
   - persistentvolumeclaim.yaml
   - confmap.yaml
   - nats_comb.yaml
-  - secret.yaml
