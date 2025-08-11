@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: prod-project
+resources:
+  - ../../base
+  - namespace.yaml
+  - backup-confmap.yaml
+  - backup-pod.yaml
+images:
+  - name: PROJECT/IMAGE_FE
+    newName: skinatro/todo-app
+    newTag: latest
+
+  - name: PROJECT/IMAGE_BE
+    newName: skinatro/todo-app-back
+    newTag: latest
+
+  - name: PROJECT/IMAGE_BD
+    newName: skinatro/todo-broadcast
+    newTag: latest

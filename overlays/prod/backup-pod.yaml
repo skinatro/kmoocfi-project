@@ -1,0 +1,72 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-db
+spec:
+  schedule: "* * * * *"   
+  timeZone: "Asia/Kolkata"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backup-db
+            image: google/cloud-sdk:slim
+            imagePullPolicy: IfNotPresent
+
+            command: ["/bin/sh", "-c"]
+            args: ["/usr/src/script/mongo-backup-script.sh"]
+
+            env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: backup-confmap
+                  key: port
+
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backup-secret
+                  key: mongo_password
+
+            - name: MONGO_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: backup-confmap
+                  key: mongo_initdb_root_username
+
+            - name: MONGO_HOST
+              value: mongodb-svc
+
+            - name: MONGO_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: backup-confmap
+                  key: mongo_initdb_database
+
+            - name: AUTH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backup-secret
+                  key:  auth_key
+
+            - name: BACK_DIR
+              value: /backup
+
+            volumeMounts:
+            - name: backup-volume
+              mountPath: /backup
+            - name: script
+              mountPath: /usr/src/script
+              readOnly: true
+
+          restartPolicy: OnFailure
+
+          volumes:
+          - name: backup-volume
+            emptyDir: {}
+          - name: script
+            configMap:
+              name: backup-confmap
+              defaultMode: 0777

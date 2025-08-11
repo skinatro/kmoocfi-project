@@ -1,13 +1,15 @@
-name: GitOps
+name: GitOps CI/CD
 
 on:
   push:
     branches:
-      - master
+      - master  # Deploy to staging on master branch commits
+    tags:
+      - '*'   # Deploy to production on any tag
 
 jobs:
-  build-publish-update:
-    name: Build, Publish to Docker Hub and Update Manifests
+  build-and-deploy:
+    name: Build, Publish, and Deploy
     runs-on: ubuntu-latest
 
     steps:
@@ -23,6 +25,15 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Set image tag
+        id: tag
+        run: |
+          if [[ ${{ github.ref_type }} == "tag" ]]; then
+            echo "IMAGE_TAG=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build and push frontend image
         uses: docker/build-push-action@v6
         with:
@@ -30,7 +41,7 @@ jobs:
           file: ./Dockerfile.app
           push: true
           tags: |
-            skinatro/todo-app:${{ github.sha }}
+            skinatro/todo-app:${{ steps.tag.outputs.IMAGE_TAG }}
             skinatro/todo-app:latest
 
       - name: Build and push backend image
@@ -40,7 +51,7 @@ jobs:
           file: ./Dockerfile.back
           push: true
           tags: |
-            skinatro/todo-app-back:${{ github.sha }}
+            skinatro/todo-app-back:${{ steps.tag.outputs.IMAGE_TAG }}
             skinatro/todo-app-back:latest
 
       - name: Build and push broadcaster image
@@ -50,20 +61,30 @@ jobs:
           file: ./Dockerfile.broadcaster
           push: true
           tags: |
-            skinatro/todo-broadcast:${{ github.sha }}
+            skinatro/todo-broadcast:${{ steps.tag.outputs.IMAGE_TAG }}
             skinatro/todo-broadcast:latest
 
       - name: Set up Kustomize
         uses: imranismail/setup-kustomize@v2.1.0
 
-      - name: Update image references
+      - name: Update staging manifests
+        if: github.ref == 'refs/heads/master'
         run: |
-          kustomize edit set image PROJECT/IMAGE_FE=skinatro/todo-app:${{ github.sha }}
-          kustomize edit set image PROJECT/IMAGE_BE=skinatro/todo-app-back:${{ github.sha }}
-          kustomize edit set image PROJECT/IMAGE_BD=skinatro/todo-broadcast:${{ github.sha }}
+          cd overlays/staging
+          kustomize edit set image PROJECT/IMAGE_FE=skinatro/todo-app:${{ steps.tag.outputs.IMAGE_TAG }}
+          kustomize edit set image PROJECT/IMAGE_BE=skinatro/todo-app-back:${{ steps.tag.outputs.IMAGE_TAG }}
+          kustomize edit set image PROJECT/IMAGE_BD=skinatro/todo-broadcast:${{ steps.tag.outputs.IMAGE_TAG }}
 
-      - name: Commit updated kustomization.yaml
+      - name: Update production manifests
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          cd overlays/prod
+          kustomize edit set image PROJECT/IMAGE_FE=skinatro/todo-app:${{ steps.tag.outputs.IMAGE_TAG }}
+          kustomize edit set image PROJECT/IMAGE_BE=skinatro/todo-app-back:${{ steps.tag.outputs.IMAGE_TAG }}
+          kustomize edit set image PROJECT/IMAGE_BD=skinatro/todo-broadcast:${{ steps.tag.outputs.IMAGE_TAG }}
+
+      - name: Commit updated manifests
         uses: EndBug/add-and-commit@v9
         with:
-          add: 'kustomization.yaml'
-          message: 'Update images to ${{ github.sha }}'
+          add: 'overlays/*/kustomization.yaml'
+          message: 'Update images to ${{ steps.tag.outputs.IMAGE_TAG }} for ${{ github.ref_name }}'

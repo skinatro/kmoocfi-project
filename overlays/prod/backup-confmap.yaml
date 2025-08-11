@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-confmap
+data:
+  port: "27017"
+  mongo_initdb_root_username: mongoadmin
+  mongo_initdb_database: todos
+  back_dir: /backup
+  mongo-backup-script.sh: |
+    #!/bin/bash
+    set -e
+
+    HOST="$MONGO_HOST"
+    BACK_DIR="$BACK_DIR"
+
+    if [[ -z "$HOST" || -z "$PORT" || -z "$MONGO_USERNAME" || -z "$BACK_DIR" || -z "$AUTH_KEY" || -z "$MONGO_PASSWORD" ]]; then
+      echo "One or more required variables are not set."
+      exit 1
+    fi
+
+    setup_gcloud(){
+      touch /tmp/auth_key.json
+      echo "$AUTH_KEY" > /tmp/auth_key.json
+      gcloud auth activate-service-account --key-file=/tmp/auth_key.json
+    }
+
+    setup_mongodump(){
+      apt-get update
+      apt-get install -y lsb-release wget gnupg
+      wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | apt-key add -
+      echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/debian $(lsb_release -cs)/mongodb-org/6.0 main" | tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+      apt-get update
+      apt-get install -y mongodb-database-tools
+    }
+
+    timestamp=$(date +"%Y%m%d-%H%M%S")
+    archive_name="mongodump-${timestamp}.archive"
+
+    backup(){
+      mongodump \
+        --host="$HOST" \
+        --port="$PORT" \
+        --username="$MONGO_USERNAME" \
+        --password="$MONGO_PASSWORD" \
+        --archive="$BACK_DIR/$archive_name"
+    }
+
+    upload(){
+      gsutil cp "$BACK_DIR/$archive_name" gs://dwk-bucket-project/
+    }
+
+    setup_gcloud
+    setup_mongodump
+    backup
+    upload
