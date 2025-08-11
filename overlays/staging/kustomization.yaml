@@ -2,19 +2,19 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: stag-project
 resources:
-  - namespace.yaml
-  - ../../base
+- namespace.yaml
+- ../../base
 patches:
-  - path: deployment_broadcast.yaml
+- path: deployment_broadcast.yaml
+
+
 images:
-  - name: PROJECT/IMAGE_FE
-    newName: skinatro/todo-app
-    newTag: latest
-
-  - name: PROJECT/IMAGE_BE
-    newName: skinatro/todo-app-back
-    newTag: latest
-
-  - name: PROJECT/IMAGE_BD
-    newName: skinatro/todo-broadcast
-    newTag: latest
+- name: PROJECT/IMAGE_BD
+  newName: skinatro/todo-broadcast
+  newTag: 980b980d65c1e3d73e511f4689cd4b9b2b5830c8
+- name: PROJECT/IMAGE_BE
+  newName: skinatro/todo-app-back
+  newTag: 980b980d65c1e3d73e511f4689cd4b9b2b5830c8
+- name: PROJECT/IMAGE_FE
+  newName: skinatro/todo-app
+  newTag: 980b980d65c1e3d73e511f4689cd4b9b2b5830c8
