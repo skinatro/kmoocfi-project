@@ -11,10 +11,10 @@ patches:
 images:
 - name: PROJECT/IMAGE_BD
   newName: skinatro/todo-broadcast
-  newTag: c06099d6fdca103df9775809fd9ce1554f8e698e
+  newTag: 553a6adcb31588c9198524d3c853990844f86eee
 - name: PROJECT/IMAGE_BE
   newName: skinatro/todo-app-back
-  newTag: c06099d6fdca103df9775809fd9ce1554f8e698e
+  newTag: 553a6adcb31588c9198524d3c853990844f86eee
 - name: PROJECT/IMAGE_FE
   newName: skinatro/todo-app
-  newTag: c06099d6fdca103df9775809fd9ce1554f8e698e
+  newTag: 553a6adcb31588c9198524d3c853990844f86eee
