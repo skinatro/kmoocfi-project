@@ -1,19 +1,17 @@
-name: GitOps CI/CD
-
+name: GitOps CI/CD with Separate Config Repo
 on:
   push:
     branches:
-      - master  # Deploy to staging on master branch commits
+      - master  # Deploy to staging
     tags:
-      - '*'   # Deploy to production on any tag
+      - '*'     # Deploy to production
 
 jobs:
-  build-and-deploy:
-    name: Build, Publish, and Deploy
+  build-and-update-config:
+    name: Build, Publish, and Update Config
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
+      - name: Checkout source code
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
@@ -25,13 +23,17 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Set image tag
-        id: tag
+      - name: Set image tag and environment
+        id: vars
         run: |
           if [[ ${{ github.ref_type }} == "tag" ]]; then
             echo "IMAGE_TAG=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "ENVIRONMENT=prod" >> $GITHUB_OUTPUT
+            echo "BRANCH_NAME=update-prod-${{ github.ref_name }}" >> $GITHUB_OUTPUT
           else
             echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "ENVIRONMENT=staging" >> $GITHUB_OUTPUT
+            echo "BRANCH_NAME=update-staging-${{ github.sha }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Build and push frontend image
@@ -41,7 +43,7 @@ jobs:
           file: ./Dockerfile.app
           push: true
           tags: |
-            skinatro/todo-app:${{ steps.tag.outputs.IMAGE_TAG }}
+            skinatro/todo-app:${{ steps.vars.outputs.IMAGE_TAG }}
             skinatro/todo-app:latest
 
       - name: Build and push backend image
@@ -51,7 +53,7 @@ jobs:
           file: ./Dockerfile.back
           push: true
           tags: |
-            skinatro/todo-app-back:${{ steps.tag.outputs.IMAGE_TAG }}
+            skinatro/todo-app-back:${{ steps.vars.outputs.IMAGE_TAG }}
             skinatro/todo-app-back:latest
 
       - name: Build and push broadcaster image
@@ -61,30 +63,44 @@ jobs:
           file: ./Dockerfile.broadcaster
           push: true
           tags: |
-            skinatro/todo-broadcast:${{ steps.tag.outputs.IMAGE_TAG }}
+            skinatro/todo-broadcast:${{ steps.vars.outputs.IMAGE_TAG }}
             skinatro/todo-broadcast:latest
+
+      - name: Checkout config repository
+        uses: actions/checkout@v4
+        with:
+          repository: skinatro/kmoocfi-project-config
+          token: ${{ secrets.CONFIG_REPO_PAT }}
+          path: config-repo
 
       - name: Set up Kustomize
         uses: imranismail/setup-kustomize@v2.1.0
 
-      - name: Update staging manifests
-        if: github.ref == 'refs/heads/master'
+      - name: Update configuration manifests
         run: |
-          cd overlays/staging
-          kustomize edit set image PROJECT/IMAGE_FE=skinatro/todo-app:${{ steps.tag.outputs.IMAGE_TAG }}
-          kustomize edit set image PROJECT/IMAGE_BE=skinatro/todo-app-back:${{ steps.tag.outputs.IMAGE_TAG }}
-          kustomize edit set image PROJECT/IMAGE_BD=skinatro/todo-broadcast:${{ steps.tag.outputs.IMAGE_TAG }}
+          cd config-repo/overlays/${{ steps.vars.outputs.ENVIRONMENT }}
+          kustomize edit set image PROJECT/IMAGE_FE=skinatro/todo-app:${{ steps.vars.outputs.IMAGE_TAG }}
+          kustomize edit set image PROJECT/IMAGE_BE=skinatro/todo-app-back:${{ steps.vars.outputs.IMAGE_TAG }}
+          kustomize edit set image PROJECT/IMAGE_BD=skinatro/todo-broadcast:${{ steps.vars.outputs.IMAGE_TAG }}
 
-      - name: Update production manifests
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          cd overlays/prod
-          kustomize edit set image PROJECT/IMAGE_FE=skinatro/todo-app:${{ steps.tag.outputs.IMAGE_TAG }}
-          kustomize edit set image PROJECT/IMAGE_BE=skinatro/todo-app-back:${{ steps.tag.outputs.IMAGE_TAG }}
-          kustomize edit set image PROJECT/IMAGE_BD=skinatro/todo-broadcast:${{ steps.tag.outputs.IMAGE_TAG }}
-
-      - name: Commit updated manifests
-        uses: EndBug/add-and-commit@v9
+      - name: Create Pull Request in config repo
+        uses: peter-evans/create-pull-request@v7
         with:
-          add: 'overlays/*/kustomization.yaml'
-          message: 'Update images to ${{ steps.tag.outputs.IMAGE_TAG }} for ${{ github.ref_name }}'
+          token: ${{ secrets.CONFIG_REPO_PAT }}
+          path: config-repo
+          commit-message: "Update ${{ steps.vars.outputs.ENVIRONMENT }} images to ${{ steps.vars.outputs.IMAGE_TAG }}"
+          title: "Update Image Tag ${{ steps.vars.outputs.ENVIRONMENT }}: ${{ steps.vars.outputs.IMAGE_TAG }}"
+          body: |
+            **Environment:** ${{ steps.vars.outputs.ENVIRONMENT }}
+            **Image Tag:** `${{ steps.vars.outputs.IMAGE_TAG }}`
+            
+            **Updated Images:**
+            - Frontend: `skinatro/todo-app:${{ steps.vars.outputs.IMAGE_TAG }}`
+            - Backend: `skinatro/todo-app-back:${{ steps.vars.outputs.IMAGE_TAG }}`
+            - Broadcaster: `skinatro/todo-broadcast:${{ steps.vars.outputs.IMAGE_TAG }}`
+            
+            **Source Repository:** ${{ github.repository }}
+            **Source Commit:** ${{ github.sha }}
+            **Trigger:** ${{ github.event_name }} on ${{ github.ref_name }}
+          branch: ${{ steps.vars.outputs.BRANCH_NAME }}
+          delete-branch: true
